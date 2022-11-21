@@ -2,6 +2,8 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const Schema = mongoose.Schema;
+const SALT_WORK_FACTOR  = 11;
+
 
 const  userSchema =new Schema({
     name:
@@ -68,16 +70,29 @@ const  userSchema =new Schema({
                 return this.name.first + ' ' + this.name.last;
             },
             set(v){
+                this.name= {};
                 this.name.first = v.substr(0, v.indexOf(' '));
                 this.name.last = v.substr(v.indexOf(' ') + 1);
             }
         }
-    }
+    },
+    versionKey: false,
+    toJSON: { 
+        virtuals: true,
+        transform: function(doc, ret) {
+            delete ret._id;
+            delete ret.id;
+        }
+    },
+   
 });
 
 userSchema.pre('save', async function(next){
     try{
-        const salt = await bcrypt.genSalt(10);
+        var user = this;
+        if (!user.isModified('password')) return next();
+
+        const salt = await bcrypt.genSalt(SALT_WORK_FACTOR);
         const hashPass = await bcrypt.hash(this.password,salt);
         this.password = hashPass;
         next();
@@ -89,3 +104,4 @@ userSchema.pre('save', async function(next){
 const  User = mongoose.model('User', userSchema);    
 
 module.exports = User;
+
